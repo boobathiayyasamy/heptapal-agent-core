@@ -1,0 +1,3 @@
+model: gemini-2.0-flash
+log_level: INFO
+default_todo_priority: medium
