@@ -1,3 +1,14 @@
 model: gemini-2.0-flash
 log_level: INFO
 default_todo_priority: medium
+
+database:
+  connection_name: heptapal-db
+  host: 192.168.0.111
+  port: 3306
+  user: admin
+  password: admin
+  database: heptapal-db
+  charset: utf8mb4
+  pool_size: 10
+  max_overflow: 20

@@ -2,7 +2,9 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
 
-reminders_storage = []
+from db.connection import DatabaseConnection
+from db.repositories import ReminderRepository
+
 
 class Reminder(BaseModel):
     id: int = Field(..., description="Unique identifier for the reminder.")
@@ -14,6 +16,46 @@ class Reminder(BaseModel):
 
 
 class ReminderTools:
+    def __init__(self, config: Dict):
+        """
+        Initialize ReminderTools with database connection.
+        
+        Args:
+            config: Application configuration containing database settings
+        """
+        self.config = config
+        self.db_connection = DatabaseConnection(config.get('database', {}))
+        self.db_connection.connect()
+    
+    def _parse_remind_time(self, remind_time: str) -> datetime:
+        """
+        Parse remind_time string into datetime object.
+        
+        Args:
+            remind_time: Time string (e.g., "2024-12-15 15:30", "tomorrow at 3 PM")
+        
+        Returns:
+            datetime: Parsed datetime object
+        """
+        remind_time_lower = remind_time.lower()
+        now = datetime.now()
+        
+        if "tomorrow" in remind_time_lower:
+            remind_date = now.date() + timedelta(days=1)
+        else:
+            remind_date = now.date()
+
+        time_str = remind_time_lower.replace("tomorrow", "").strip()
+        try:
+            remind_time_obj = datetime.strptime(time_str, "%I %p").time()
+        except ValueError:
+            try:
+                remind_time_obj = datetime.strptime(time_str, "%H:%M").time()
+            except ValueError:
+                remind_time_obj = now.time()
+        
+        return datetime.combine(remind_date, remind_time_obj)
+
     def add_reminder(self, title: str, description: str, remind_time: str) -> Dict:
         """
         Add a new reminder to the system.
@@ -25,44 +67,20 @@ class ReminderTools:
             dict: Status and reminder details
         """
         try:
-            # Basic NLP for remind_time
-            remind_time_lower = remind_time.lower()
-            now = datetime.now()
-            if "tomorrow" in remind_time_lower:
-                remind_date = now.date() + timedelta(days=1)
-            else:
-                remind_date = now.date()
-
-            time_str = remind_time_lower.replace("tomorrow", "").strip()
-            try:
-                remind_time_obj = datetime.strptime(time_str, "%I %p").time()
-            except ValueError:
-                try:
-                    remind_time_obj = datetime.strptime(time_str, "%H:%M").time()
-                except ValueError:
-                    remind_time_obj = now.time()
+            parsed_time = self._parse_remind_time(remind_time)
             
-            remind_datetime = datetime.combine(remind_date, remind_time_obj)
-            remind_time_str = remind_datetime.strftime("%Y-%m-%d %H:%M:%S")
-
-            reminder_id = len(reminders_storage) + 1
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            session = self.db_connection.get_session()
+            if not session:
+                return {
+                    "status": "error",
+                    "message": "Database connection failed"
+                }
             
-            reminder = Reminder(
-                id=reminder_id,
-                title=title,
-                description=description,
-                remind_time=remind_time_str,
-                is_active=True
-            )
+            repository = ReminderRepository(session)
+            result = repository.add_reminder(title, description, parsed_time)
+            session.close()
             
-            reminders_storage.append(reminder)
-            
-            return {
-                "status": "success",
-                "message": f"Reminder '{title}' added successfully",
-                "reminder": reminder.model_dump()
-            }
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -76,13 +94,18 @@ class ReminderTools:
             dict: List of all active reminders
         """
         try:
-            active_reminders = [r for r in reminders_storage if r.is_active]
+            session = self.db_connection.get_session()
+            if not session:
+                return {
+                    "status": "error",
+                    "message": "Database connection failed"
+                }
             
-            return {
-                "status": "success",
-                "message": f"Found {len(active_reminders)} active reminders",
-                "reminders": [r.model_dump() for r in active_reminders]
-            }
+            repository = ReminderRepository(session)
+            result = repository.list_reminders()
+            session.close()
+            
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -98,19 +121,18 @@ class ReminderTools:
             dict: Reminder details or error message
         """
         try:
-            reminder = next((r for r in reminders_storage if r.id == reminder_id), None)
-            
-            if not reminder:
+            session = self.db_connection.get_session()
+            if not session:
                 return {
                     "status": "error",
-                    "message": f"Reminder with ID {reminder_id} not found"
+                    "message": "Database connection failed"
                 }
             
-            return {
-                "status": "success",
-                "message": f"Reminder {reminder_id} retrieved successfully",
-                "reminder": reminder.model_dump()
-            }
+            repository = ReminderRepository(session)
+            result = repository.get_reminder(reminder_id)
+            session.close()
+            
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -129,26 +151,22 @@ class ReminderTools:
             dict: Updated reminder details or error message
         """
         try:
-            reminder = next((r for r in reminders_storage if r.id == reminder_id), None)
+            parsed_time = None
+            if remind_time:
+                parsed_time = self._parse_remind_time(remind_time)
             
-            if not reminder:
+            session = self.db_connection.get_session()
+            if not session:
                 return {
                     "status": "error",
-                    "message": f"Reminder with ID {reminder_id} not found"
+                    "message": "Database connection failed"
                 }
             
-            if title:
-                reminder.title = title
-            if description:
-                reminder.description = description
-            if remind_time:
-                reminder.remind_time = remind_time
+            repository = ReminderRepository(session)
+            result = repository.update_reminder(reminder_id, title, description, parsed_time)
+            session.close()
             
-            return {
-                "status": "success",
-                "message": f"Reminder {reminder_id} updated successfully",
-                "reminder": reminder.model_dump()
-            }
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -164,20 +182,18 @@ class ReminderTools:
             dict: Deletion status
         """
         try:
-            reminder = next((r for r in reminders_storage if r.id == reminder_id), None)
-            
-            if not reminder:
+            session = self.db_connection.get_session()
+            if not session:
                 return {
                     "status": "error",
-                    "message": f"Reminder with ID {reminder_id} not found"
+                    "message": "Database connection failed"
                 }
             
-            reminder.is_active = False
+            repository = ReminderRepository(session)
+            result = repository.delete_reminder(reminder_id)
+            session.close()
             
-            return {
-                "status": "success",
-                "message": f"Reminder '{reminder.title}' deleted successfully"
-            }
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -193,17 +209,18 @@ class ReminderTools:
             dict: List of matching reminders
         """
         try:
-            query_lower = query.lower()
-            matching_reminders = [
-                r for r in reminders_storage 
-                if r.is_active and (query_lower in r.title.lower() or query_lower in r.description.lower())
-            ]
+            session = self.db_connection.get_session()
+            if not session:
+                return {
+                    "status": "error",
+                    "message": "Database connection failed"
+                }
             
-            return {
-                "status": "success",
-                "message": f"Found {len(matching_reminders)} matching reminders",
-                "reminders": [r.model_dump() for r in matching_reminders]
-            }
+            repository = ReminderRepository(session)
+            result = repository.search_reminders(query)
+            session.close()
+            
+            return result
         except Exception as e:
             return {
                 "status": "error",

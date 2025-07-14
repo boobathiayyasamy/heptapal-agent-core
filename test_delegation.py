@@ -5,7 +5,12 @@ Test script to verify root agent delegation works correctly
 
 import sys
 import os
+import yaml
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+def load_config():
+    with open("application.yaml", "r") as f:
+        return yaml.safe_load(f)
 
 def test_root_agent_tools():
     """Test that the root agent has all the necessary tools"""
@@ -41,10 +46,11 @@ def test_tool_functionality():
     try:
         from root_agent.sub_agents.reminder_agent.tools.reminder_tools import ReminderTools
         from root_agent.sub_agents.todo_agent.tools.todo_tools import TodoTools
-        import yaml
+        
+        config = load_config()
         
         # Test reminder tools
-        reminder_tools = ReminderTools()
+        reminder_tools = ReminderTools(config)
         
         # Add a test reminder
         result = reminder_tools.add_reminder("Test Reminder", "This is a test", "tomorrow at 10 AM")
@@ -56,9 +62,6 @@ def test_tool_functionality():
         print(f"   Found {len(result['reminders'])} reminders")
         
         # Test todo tools
-        with open("application.yaml", "r") as f:
-            config = yaml.safe_load(f)
-        
         todo_tools = TodoTools(config)
         
         # Add a test todo

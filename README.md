@@ -1,10 +1,10 @@
 # Personal AI Assistant with Google ADK
 
-A comprehensive Personal AI Assistant built with Google Agent Development Kit (ADK) that uses a multi-agent architecture to handle reminders and todo lists efficiently.
+A comprehensive Personal AI Assistant built with Google Agent Development Kit (ADK) that uses a multi-agent architecture to handle reminders and todo lists efficiently with MySQL database persistence.
 
 ## 🏗️ Architecture
 
-The system implements a **multi-agent architecture** with specialized agents:
+The system implements a **multi-agent architecture** with specialized agents and **MySQL database persistence**:
 
 ### Root Agent
 - **Purpose**: Delegates tasks to appropriate sub-agents based on user requests
@@ -37,6 +37,15 @@ The system implements a **multi-agent architecture** with specialized agents:
   - `search_todos`: Find todos by content
   - `get_todo_statistics`: View todo analytics
 
+### Database Layer
+- **Purpose**: Persistent storage for reminders and todos
+- **Technology**: MySQL with SQLAlchemy ORM
+- **Features**:
+  - Connection pooling and management
+  - Repository pattern for data access
+  - Single Responsibility Principle design
+  - Comprehensive error handling
+
 ## 🚀 Features
 
 ### Reminder Management
@@ -45,6 +54,7 @@ The system implements a **multi-agent architecture** with specialized agents:
 - ✅ Search reminders by content
 - ✅ Update and delete reminders
 - ✅ Rich console output with emojis and formatting
+- ✅ **Persistent storage in MySQL database**
 
 ### Todo Management
 - ✅ Add todo items with priorities (low, medium, high)
@@ -53,17 +63,26 @@ The system implements a **multi-agent architecture** with specialized agents:
 - ✅ Filter todos by status and priority
 - ✅ Complete task analytics and statistics
 - ✅ Rich console output with priority indicators
+- ✅ **Persistent storage in MySQL database**
 
 ### Agent Delegation
 - ✅ Intelligent request routing based on user intent
 - ✅ Seamless integration between agents
 - ✅ Error handling and graceful fallbacks
 
+### Database Features
+- ✅ **MySQL database persistence**
+- ✅ **Connection pooling** for performance
+- ✅ **Repository pattern** for clean data access
+- ✅ **Automatic table creation** and schema management
+- ✅ **Comprehensive error handling** and logging
+- ✅ **Search and filtering** capabilities
+
 ## 📦 Installation
 
 1. **Install Google ADK**:
    ```bash
-   pip install google-adk
+   uv add google-adk
    ```
 
 2. **Clone/Download the project**:
@@ -74,9 +93,16 @@ The system implements a **multi-agent architecture** with specialized agents:
 
 3. **Install dependencies**:
    ```bash
-   pip install -r requirements.txt
-   # or using uv
-   uv pip install -r requirements.txt
+   uv add mysql-connector-python sqlalchemy
+   ```
+
+4. **Database Setup**:
+   ```bash
+   # Create database and tables
+   mysql -h 192.168.0.111 -u admin -p < database_schema.sql
+   
+   # Initialize database (optional - tables will be created automatically)
+   python -m db.init_db
    ```
 
 ## 🎯 Usage
@@ -94,6 +120,22 @@ This will demonstrate:
 - All available operations
 - Agent delegation functionality
 - Rich console output with formatting
+- **Database persistence**
+
+### Testing Database Functionality
+
+Run the database test script to verify everything is working:
+
+```bash
+python test_database.py
+```
+
+This will test:
+- Database connection
+- Reminder operations (CRUD)
+- Todo operations (CRUD)
+- Search and filtering
+- Statistics functionality
 
 ### Using with ADK CLI
 
@@ -112,25 +154,25 @@ This will demonstrate:
 #### Reminder Examples
 ```
 User: "Remind me to call John tomorrow at 3 PM"
-Assistant: Uses delegate_to_reminder_agent → Creates reminder
+Assistant: Uses delegate_to_reminder_agent → Creates reminder in database
 
 User: "Show me all my reminders"
-Assistant: Uses reminder agent → Lists all active reminders
+Assistant: Uses reminder agent → Lists all active reminders from database
 
 User: "Find reminders about doctor"
-Assistant: Uses search_reminders → Shows matching reminders
+Assistant: Uses search_reminders → Shows matching reminders from database
 ```
 
 #### Todo Examples
 ```
 User: "Add buy groceries to my todo list with high priority"
-Assistant: Uses delegate_to_todo_agent → Creates high priority todo
+Assistant: Uses delegate_to_todo_agent → Creates high priority todo in database
 
 User: "Show me all my pending tasks"
-Assistant: Uses list_todos with status filter → Shows pending items
+Assistant: Uses list_todos with status filter → Shows pending items from database
 
 User: "Mark task 3 as completed"
-Assistant: Uses update_todo → Marks task as completed
+Assistant: Uses update_todo → Marks task as completed in database
 ```
 
 ## 📊 Data Structures
@@ -166,32 +208,53 @@ Assistant: Uses update_todo → Marks task as completed
 ### Framework
 - **Google ADK**: Agent Development Kit for multi-agent systems
 - **Python 3.12+**: Modern Python with type hints
-- **In-memory Storage**: Fast, simple data persistence (can be extended to databases)
+- **MySQL Database**: Persistent storage with SQLAlchemy ORM
+- **SQLAlchemy**: Database ORM with connection pooling
 
 ### Key Components
 
 1. **Agent Classes**: Each agent extends ADK's `Agent` class
 2. **Function Tools**: Custom Python functions wrapped as ADK tools
-3. **Type Safety**: Full type annotations for reliable operations
-4. **Error Handling**: Comprehensive error handling with user-friendly messages
-5. **Rich Output**: Formatted console output with emojis and visual indicators
+3. **Database Layer**: 
+   - `DatabaseConnection`: Connection management and pooling
+   - `ReminderRepository` & `TodoRepository`: Data access layer
+   - SQLAlchemy models with proper indexing
+4. **Type Safety**: Full type annotations for reliable operations
+5. **Error Handling**: Comprehensive error handling with user-friendly messages
+6. **Rich Output**: Formatted console output with emojis and visual indicators
 
 ### File Structure
 ```
 heptapal-agent-core/
+├── db/                          # Database package
+│   ├── __init__.py             # Package initialization
+│   ├── connection.py           # Database connection management
+│   ├── models.py               # SQLAlchemy models
+│   ├── repositories.py         # Data access repositories
+│   └── init_db.py              # Database initialization
 ├── root_agent/
-│   ├── agent.py                 # Root agent with delegation logic
+│   ├── agent.py                # Root agent with delegation logic
 │   ├── __init__.py             # Package initialization
 │   └── sub_agents/
 │       ├── __init__.py         # Sub-agents package
 │       ├── reminder_agent/
 │       │   ├── agent.py        # Reminder agent + tools
-│       │   └── __init__.py     # Package initialization
+│       │   ├── __init__.py     # Package initialization
+│       │   └── tools/
+│       │       ├── __init__.py # Tools package
+│       │       └── reminder_tools.py # Reminder tools with DB
 │       └── todo_agent/
 │           ├── agent.py        # Todo agent + tools
-│           └── __init__.py     # Package initialization
+│           ├── __init__.py     # Package initialization
+│           └── tools/
+│               ├── __init__.py # Tools package
+│               └── todo_tools.py # Todo tools with DB
+├── application.yaml            # Configuration including DB settings
+├── database_schema.sql         # Database schema script
+├── test_database.py            # Database functionality test
 ├── demo_assistant.py           # Comprehensive demo script
 ├── pyproject.toml             # Project configuration
+├── DATABASE_SETUP.md          # Database setup guide
 └── README.md                  # This documentation
 ```
 
@@ -248,54 +311,4 @@ heptapal-agent-core/
 4. Update root agent delegation logic
 
 ### Adding New Tools
-```python
-def new_tool_function(param: str) -> dict:
-    """
-    Tool description for the LLM.
-    Args:
-        param: Parameter description
-    Returns:
-        dict: Result with status and data
-    """
-    try:
-        # Your tool logic here
-        return {
-            "status": "success",
-            "message": "Tool executed successfully",
-            "data": "result"
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Tool failed: {str(e)}"
-        }
-
-# Add to agent tools
-new_tool = FunctionTool(func=new_tool_function)
 ```
-
-## 🚀 Next Steps
-
-1. **Database Integration**: Replace in-memory storage with persistent database
-2. **Web Interface**: Build a modern web UI for the assistant
-3. **Mobile App**: Create mobile app integration
-4. **Voice Interface**: Add voice commands and responses
-5. **AI Enhancements**: Implement more intelligent task understanding
-6. **Notifications**: Add real-time reminder notifications
-7. **Team Collaboration**: Multi-user support and sharing
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📧 Support
-
-For support and questions, please open an issue in the project repository.
-
----
-
-**Built with ❤️ using Google Agent Development Kit**

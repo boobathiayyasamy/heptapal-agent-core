@@ -11,7 +11,7 @@ with open("application.yaml", "r") as f:
     config = yaml.safe_load(f)
 
 # Initialize tools
-reminder_tools = ReminderTools()
+reminder_tools = ReminderTools(config)
 todo_tools = TodoTools(config)
 
 # Create FunctionTools for all operations

@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 with open("application.yaml", "r") as f:
     config = yaml.safe_load(f)
 
-reminder_tools = ReminderTools()
+reminder_tools = ReminderTools(config)
 
 add_reminder_tool = FunctionTool(func=reminder_tools.add_reminder)
 list_reminders_tool = FunctionTool(func=reminder_tools.list_reminders)

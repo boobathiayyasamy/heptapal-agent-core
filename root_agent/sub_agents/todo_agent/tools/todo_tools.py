@@ -2,7 +2,9 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
 
-todos_storage = []
+from db.connection import DatabaseConnection
+from db.repositories import TodoRepository
+
 
 class TodoItem(BaseModel):
     id: int = Field(..., description="Unique identifier for the todo item.")
@@ -17,7 +19,33 @@ class TodoItem(BaseModel):
 
 class TodoTools:
     def __init__(self, config: Dict):
+        """
+        Initialize TodoTools with database connection.
+        
+        Args:
+            config: Application configuration containing database settings
+        """
         self.config = config
+        self.db_connection = DatabaseConnection(config.get('database', {}))
+        self.db_connection.connect()
+
+    def _parse_due_date(self, due_date: str) -> Optional[datetime]:
+        """
+        Parse due_date string into datetime object.
+        
+        Args:
+            due_date: Date string in YYYY-MM-DD format
+        
+        Returns:
+            datetime: Parsed datetime object or None if invalid
+        """
+        if not due_date:
+            return None
+        
+        try:
+            return datetime.strptime(due_date, "%Y-%m-%d")
+        except ValueError:
+            return None
 
     def add_todo(self, title: Optional[str] = None, description: Optional[str] = None, priority: Optional[str] = None, due_date: Optional[str] = None) -> Dict:
         """
@@ -50,23 +78,20 @@ class TodoTools:
                     "message": "Invalid priority. Please choose from 'low', 'medium', or 'high'."
                 }
             
-            todo_id = len(todos_storage) + 1
+            parsed_due_date = self._parse_due_date(due_date) if due_date else None
             
-            todo = TodoItem(
-                id=todo_id,
-                title=title,
-                description=description,
-                priority=priority,
-                due_date=due_date
-            )
+            session = self.db_connection.get_session()
+            if not session:
+                return {
+                    "status": "error",
+                    "message": "Database connection failed"
+                }
             
-            todos_storage.append(todo)
+            repository = TodoRepository(session)
+            result = repository.add_todo(title, description, priority, parsed_due_date)
+            session.close()
             
-            return {
-                "status": "success",
-                "message": f"Todo item '{title}' added successfully",
-                "todo": todo.model_dump()
-            }
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -83,19 +108,18 @@ class TodoTools:
             dict: List of todo items
         """
         try:
-            filtered_todos = todos_storage.copy()
+            session = self.db_connection.get_session()
+            if not session:
+                return {
+                    "status": "error",
+                    "message": "Database connection failed"
+                }
             
-            if filter_status:
-                filtered_todos = [t for t in filtered_todos if t.status == filter_status]
+            repository = TodoRepository(session)
+            result = repository.list_todos(filter_status, filter_priority)
+            session.close()
             
-            if filter_priority:
-                filtered_todos = [t for t in filtered_todos if t.priority == filter_priority]
-            
-            return {
-                "status": "success",
-                "message": f"Found {len(filtered_todos)} todo items",
-                "todos": [t.model_dump() for t in filtered_todos]
-            }
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -111,19 +135,18 @@ class TodoTools:
             dict: Todo item details or error message
         """
         try:
-            todo = next((t for t in todos_storage if t.id == todo_id), None)
-            
-            if not todo:
+            session = self.db_connection.get_session()
+            if not session:
                 return {
                     "status": "error",
-                    "message": f"Todo item with ID {todo_id} not found"
+                    "message": "Database connection failed"
                 }
             
-            return {
-                "status": "success",
-                "message": f"Todo item {todo_id} retrieved successfully",
-                "todo": todo.model_dump()
-            }
+            repository = TodoRepository(session)
+            result = repository.get_todo(todo_id)
+            session.close()
+            
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -146,34 +169,20 @@ class TodoTools:
             dict: Updated todo item details or error message
         """
         try:
-            todo = next((t for t in todos_storage if t.id == todo_id), None)
+            parsed_due_date = self._parse_due_date(due_date) if due_date else None
             
-            if not todo:
+            session = self.db_connection.get_session()
+            if not session:
                 return {
                     "status": "error",
-                    "message": f"Todo item with ID {todo_id} not found"
+                    "message": "Database connection failed"
                 }
             
-            if title:
-                todo.title = title
-            if description:
-                todo.description = description
-            if priority and priority in ["low", "medium", "high"]:
-                todo.priority = priority
-            if status and status in ["pending", "in_progress", "completed"]:
-                todo.status = status
-                if status == "completed" and not todo.completed_at:
-                    todo.completed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                elif status != "completed":
-                    todo.completed_at = None
-            if due_date:
-                todo.due_date = due_date
+            repository = TodoRepository(session)
+            result = repository.update_todo(todo_id, title, description, priority, status, parsed_due_date)
+            session.close()
             
-            return {
-                "status": "success",
-                "message": f"Todo item {todo_id} updated successfully",
-                "todo": todo.model_dump()
-            }
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -189,20 +198,18 @@ class TodoTools:
             dict: Deletion status
         """
         try:
-            todo = next((t for t in todos_storage if t.id == todo_id), None)
-            
-            if not todo:
+            session = self.db_connection.get_session()
+            if not session:
                 return {
                     "status": "error",
-                    "message": f"Todo item with ID {todo_id} not found"
+                    "message": "Database connection failed"
                 }
             
-            todos_storage.remove(todo)
+            repository = TodoRepository(session)
+            result = repository.delete_todo(todo_id)
+            session.close()
             
-            return {
-                "status": "success",
-                "message": f"Todo item '{todo.title}' deleted successfully"
-            }
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -218,17 +225,18 @@ class TodoTools:
             dict: List of matching todo items
         """
         try:
-            query_lower = query.lower()
-            matching_todos = [
-                t for t in todos_storage 
-                if query_lower in t.title.lower() or query_lower in t.description.lower()
-            ]
+            session = self.db_connection.get_session()
+            if not session:
+                return {
+                    "status": "error",
+                    "message": "Database connection failed"
+                }
             
-            return {
-                "status": "success",
-                "message": f"Found {len(matching_todos)} matching todo items",
-                "todos": [t.model_dump() for t in matching_todos]
-            }
+            repository = TodoRepository(session)
+            result = repository.search_todos(query)
+            session.close()
+            
+            return result
         except Exception as e:
             return {
                 "status": "error",
@@ -242,31 +250,18 @@ class TodoTools:
             dict: Various statistics about todo items
         """
         try:
-            total_todos = len(todos_storage)
-            pending_todos = len([t for t in todos_storage if t.status == "pending"])
-            in_progress_todos = len([t for t in todos_storage if t.status == "in_progress"])
-            completed_todos = len([t for t in todos_storage if t.status == "completed"])
-            
-            high_priority = len([t for t in todos_storage if t.priority == "high"])
-            medium_priority = len([t for t in todos_storage if t.priority == "medium"])
-            low_priority = len([t for t in todos_storage if t.priority == "low"])
-            
-            overdue_todos = len([t for t in todos_storage if t.due_date and t.due_date < datetime.now().strftime("%Y-%m-%d") and t.status != "completed"])
-            
-            return {
-                "status": "success",
-                "message": "Todo statistics retrieved successfully",
-                "statistics": {
-                    "total": total_todos,
-                    "pending": pending_todos,
-                    "in_progress": in_progress_todos,
-                    "completed": completed_todos,
-                    "high_priority": high_priority,
-                    "medium_priority": medium_priority,
-                    "low_priority": low_priority,
-                    "overdue": overdue_todos
+            session = self.db_connection.get_session()
+            if not session:
+                return {
+                    "status": "error",
+                    "message": "Database connection failed"
                 }
-            }
+            
+            repository = TodoRepository(session)
+            result = repository.get_todo_statistics()
+            session.close()
+            
+            return result
         except Exception as e:
             return {
                 "status": "error",
