@@ -1,86 +1,32 @@
-# Personal AI Assistant with Google ADK
+# Heptapal - Your Personal AI Assistant
 
-A comprehensive Personal AI Assistant built with Google Agent Development Kit (ADK) that uses a multi-agent architecture to handle reminders and todo lists efficiently with MySQL database persistence.
+Heptapal is a personal AI assistant designed to help you manage your daily tasks with ease. It's built using the Google Agent Development Kit (ADK) and features a powerful multi-agent architecture to handle reminders and to-do lists, all backed by a persistent MySQL database.
 
-## 🏗️ Architecture
+This project is open-source and licensed under the Apache 2.0 License.
 
-The system implements a **multi-agent architecture** with specialized agents and **MySQL database persistence**:
+## 🌟 Key Features
 
-### Root Agent
-- **Purpose**: Delegates tasks to appropriate sub-agents based on user requests
-- **Model**: `gemini-2.0-flash`
-- **Capabilities**: 
-  - Understands user intent (reminder vs todo)
-  - Routes requests to specialized sub-agents
-  - Provides unified interface for the assistant
+- **Multi-Agent Architecture**: A root agent delegates tasks to specialized agents for reminders and to-dos, ensuring efficient handling of your requests.
+- **Persistent Storage**: Your data is safely stored in a MySQL database, so you never have to worry about losing your reminders or to-do lists.
+- **Comprehensive Task Management**: 
+    - **Reminders**: Add, list, update, delete, and search for reminders.
+    - **To-Dos**: Create to-do items with priorities, due dates, and status. List, update, delete, and search for to-dos, and even get statistics on your progress.
+- **Easy to Use**: Interact with Heptapal through a simple command-line interface or a web interface.
+- **Extensible**: The modular design makes it easy to add new agents and tools to expand Heptapal's capabilities.
 
-### Reminder Agent
-- **Purpose**: Manages reminders and alerts
-- **Model**: `gemini-2.0-flash`
-- **Tools**:
-  - `add_reminder`: Create new reminders with title, description, and time
-  - `list_reminders`: View all active reminders
-  - `get_reminder`: Get specific reminder details
-  - `update_reminder`: Modify existing reminders
-  - `delete_reminder`: Remove reminders
-  - `search_reminders`: Find reminders by content
+## 🚀 Getting Started
 
-### Todo Agent
-- **Purpose**: Manages todo lists and tasks
-- **Model**: `gemini-2.0-flash`
-- **Tools**:
-  - `add_todo`: Create new todo items with priority and due dates
-  - `list_todos`: View todos with filtering options
-  - `get_todo`: Get specific todo details
-  - `update_todo`: Modify existing todos
-  - `delete_todo`: Remove todos
-  - `search_todos`: Find todos by content
-  - `get_todo_statistics`: View todo analytics
+Follow these steps to set up and run Heptapal on your local machine.
 
-### Database Layer
-- **Purpose**: Persistent storage for reminders and todos
-- **Technology**: MySQL with SQLAlchemy ORM
-- **Features**:
-  - Connection pooling and management
-  - Repository pattern for data access
-  - Single Responsibility Principle design
-  - Comprehensive error handling
+### Prerequisites
 
-## 🚀 Features
+- Python 3.12+
+- [Google Agent Development Kit (ADK)](https://developers.google.com/agent-development-kit)
+- MySQL Server
 
-### Reminder Management
-- ✅ Add reminders with titles, descriptions, and remind times
-- ✅ List all active reminders with formatted output
-- ✅ Search reminders by content
-- ✅ Update and delete reminders
-- ✅ Rich console output with emojis and formatting
-- ✅ **Persistent storage in MySQL database**
+### Installation
 
-### Todo Management
-- ✅ Add todo items with priorities (low, medium, high)
-- ✅ Set due dates for tasks
-- ✅ Track task status (pending, in_progress, completed)
-- ✅ Filter todos by status and priority
-- ✅ Complete task analytics and statistics
-- ✅ Rich console output with priority indicators
-- ✅ **Persistent storage in MySQL database**
-
-### Agent Delegation
-- ✅ Intelligent request routing based on user intent
-- ✅ Seamless integration between agents
-- ✅ Error handling and graceful fallbacks
-
-### Database Features
-- ✅ **MySQL database persistence**
-- ✅ **Connection pooling** for performance
-- ✅ **Repository pattern** for clean data access
-- ✅ **Automatic table creation** and schema management
-- ✅ **Comprehensive error handling** and logging
-- ✅ **Search and filtering** capabilities
-
-## 📦 Installation
-
-1. **Install Google ADK**:
+1. **Clone the repository**:
    ```bash
    uv add google-adk
    ```
